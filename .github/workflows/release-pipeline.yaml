@@ -1,4 +1,4 @@
-name: 🏭 Draft Release
+name: Draft Release
 
 on:
   workflow_dispatch:
@@ -22,10 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_tag: ${{ steps.set_tag.outputs.new_tag }}
+
     steps:
-      # Docs - https://github.com/mathieudutour/github-tag-action
       - name: Bump Version and Push Tag
-        if: github.repository == 'OpenGOAL-Mods/OG-Mod-Base'
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
@@ -43,11 +42,10 @@ jobs:
         run: |
           echo "new_tag=${{ steps.tag_version.outputs.new_tag }}" >> $GITHUB_OUTPUT
 
-  # Windows
   build_windows_clang:
     needs:
       - cut_release
-    name: "🖥️ Windows"
+    name: Windows
     uses: ./.github/workflows/windows-build-clang.yaml
     with:
       cmakePreset: "Release-windows-clang-static"
@@ -55,11 +53,10 @@ jobs:
       uploadArtifacts: true
     secrets: inherit
 
-  # Linux
   build_linux_clang:
     needs:
       - cut_release
-    name: "🐧 Linux"
+    name: Linux
     uses: ./.github/workflows/linux-build-clang.yaml
     with:
       cmakePreset: "Release-linux-clang-static"
@@ -67,11 +64,10 @@ jobs:
       uploadArtifacts: true
     secrets: inherit
 
-  # macOS
   build_macos_intel:
     needs:
       - cut_release
-    name: "🍎 MacOS"
+    name: macOS Intel
     uses: ./.github/workflows/macos-build.yaml
     with:
       cmakePreset: "Release-macos-x86_64-clang-static"
@@ -82,7 +78,7 @@ jobs:
   build_macos_arm_rosetta:
     needs:
       - cut_release
-    name: "🍎 MacOS"
+    name: macOS ARM
     uses: ./.github/workflows/macos-build.yaml
     with:
       cmakePreset: "Release-macos-x86_64-clang-static"
@@ -90,7 +86,6 @@ jobs:
       uploadArtifacts: true
     secrets: inherit
 
-  # Upload the Artifacts
   upload_artifacts:
     needs:
       - cut_release
@@ -98,8 +93,9 @@ jobs:
       - build_linux_clang
       - build_macos_intel
       - build_macos_arm_rosetta
-    name: "Upload Artifacts"
+    name: Upload Artifacts
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v7
         with:
