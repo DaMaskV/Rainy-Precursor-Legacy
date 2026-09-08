@@ -656,6 +656,7 @@
   (let ((s5-2 (-> arg0 light-group 1)))
     (update-light-kit s5-2 (-> arg0 light-group 0 ambi) 0.6)
     (set! (-> s5-2 dir0 levels x) (+ 1.0 (* 0.333 (-> arg0 times 2 w)))))
+  (update-mood-lightning arg0 2 2 4 2 0.5 #f)
   (update-mood-itimes arg0)
   0
   (none))
@@ -821,6 +822,7 @@
         (let ((f30-6 (* 0.000061035156 (+ -45056.0 f0-58))))
           (set-target-light-index 7)
           (set! (-> *time-of-day-context* target-interp) (- 1.0 (fmax 0.0 (fmin 1.0 f30-6))))))))
+  (update-mood-lightning arg0 2 2 4 2 0.5 #f)
   (update-mood-itimes arg0)
   0
   (none))
@@ -842,6 +844,7 @@
        (update-mood-light arg0 5 0 1 0.875 0.25 20.0 32)
        (if (not (paused?)) (+! (-> arg0 state 1) 1)))
       (else (set! (-> arg0 state 1) (the-as uint 0)) (set! (-> arg0 state 0) (the-as uint 255)))))
+  (update-mood-lightning arg0 2 2 4 2 0.5 #f)
   (update-mood-itimes arg0)
   0
   (none))

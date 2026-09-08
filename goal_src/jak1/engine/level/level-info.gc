@@ -280,7 +280,7 @@
        :visname 'beach-vis
        :nickname 'bea
        :packages '(beach)
-       :sound-banks '(beach)
+       :sound-banks '(beach village2)
        :music-bank 'beach
        :ambient-sounds
        '()
@@ -333,7 +333,7 @@
        :visname 'jungle-vis
        :nickname 'jun
        :packages '(jungle)
-       :sound-banks '(jungle)
+       :sound-banks '(jungle village2)
        :music-bank 'jungle
        :ambient-sounds
        '()
@@ -437,7 +437,7 @@
        :visname 'misty-vis
        :nickname 'mis
        :packages '(misty)
-       :sound-banks '(misty)
+       :sound-banks '(misty village2)
        :music-bank 'misty
        :ambient-sounds
        '()

@@ -350,7 +350,7 @@
             :stq
             (new 'static 'vector :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -358,7 +358,7 @@
             :stq
             (new 'static 'vector :x 1.0 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -366,7 +366,7 @@
             :stq
             (new 'static 'vector :x 0.5 :y 0.5 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -374,7 +374,7 @@
             :stq
             (new 'static 'vector :x 1.0 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -382,7 +382,7 @@
             :stq
             (new 'static 'vector :x 1.0 :y 1.0 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -390,7 +390,7 @@
             :stq
             (new 'static 'vector :x 0.5 :y 0.5 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -398,7 +398,7 @@
             :stq
             (new 'static 'vector :x 1.0 :y 1.0 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -406,7 +406,7 @@
             :stq
             (new 'static 'vector :y 1.0 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -414,7 +414,7 @@
             :stq
             (new 'static 'vector :x 0.5 :y 0.5 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -422,7 +422,7 @@
             :stq
             (new 'static 'vector :y 1.0 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -430,7 +430,7 @@
             :stq
             (new 'static 'vector :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))
        (new 'static
             'sky-vertex
             :pos
@@ -438,7 +438,7 @@
             :stq
             (new 'static 'vector :x 0.5 :y 0.5 :z 1.0)
             :col
-            (new 'static 'vector :x 128.0 :y 128.0 :z 128.0 :w 128.0))))
+            (new 'static 'vector :x 60.0 :y 66.0 :z 80.0 :w 128.0))))
 
 (define sky-cloud-polygons
   (new 'static

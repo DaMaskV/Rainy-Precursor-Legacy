@@ -448,7 +448,7 @@
   (water-control-method-10 (-> self water))
   (when (not *weather-off*)
     (case (-> self current-level name)
-      (('swamp) (update-rain self))
+      (('swamp 'village1 'village2 'beach 'misty 'jungle 'training) (update-rain self))
       (('snow) (update-snow self))))
   (cond
     ((and (= (-> self control ground-pat material) (pat-material ice))

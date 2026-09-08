@@ -3231,17 +3231,17 @@
 
 (define *village1-mood* (new 'global 'mood-context))
 
-(set! (-> *village1-mood* mood-fog-table) *village1-mood-fog-table*)
+(set! (-> *village1-mood* mood-fog-table) *swamp-mood-fog-table*)
 
-(set! (-> *village1-mood* mood-lights-table) *village1-mood-lights-table*)
+(set! (-> *village1-mood* mood-lights-table) *village2-mood-lights-table*)
 
-(set! (-> *village1-mood* mood-sun-table) *village1-mood-sun-table*)
+(set! (-> *village1-mood* mood-sun-table) *village2-mood-sun-table*)
 
 (set! (-> *village1-mood* fog-interp) *default-interp-table*)
 
-(set! (-> *village1-mood* palette-interp) *village1-palette-interp-table*)
+(set! (-> *village1-mood* palette-interp) *misty-palette-interp-table*)
 
-(set! (-> *village1-mood* sky-texture-interp) *default-interp-table*)
+(set! (-> *village1-mood* sky-texture-interp) *village2-sky-texture-table*)
 
 (set! (-> *village1-mood* num-stars) 85.0)
 
@@ -3249,17 +3249,17 @@
 
 (define *beach-mood* (new 'global 'mood-context))
 
-(set! (-> *beach-mood* mood-fog-table) *village1-mood-fog-table*)
+(set! (-> *beach-mood* mood-fog-table) *swamp-mood-fog-table*)
 
-(set! (-> *beach-mood* mood-lights-table) *village1-mood-lights-table*)
+(set! (-> *beach-mood* mood-lights-table) *village2-mood-lights-table*)
 
-(set! (-> *beach-mood* mood-sun-table) *village1-mood-sun-table*)
+(set! (-> *beach-mood* mood-sun-table) *village2-mood-sun-table*)
 
 (set! (-> *beach-mood* fog-interp) *default-interp-table*)
 
-(set! (-> *beach-mood* palette-interp) *village1-palette-interp-table*)
+(set! (-> *beach-mood* palette-interp) *misty-palette-interp-table*)
 
-(set! (-> *beach-mood* sky-texture-interp) *default-interp-table*)
+(set! (-> *beach-mood* sky-texture-interp) *village2-sky-texture-table*)
 
 (set! (-> *beach-mood* num-stars) 85.0)
 
@@ -3267,17 +3267,17 @@
 
 (define *jungle-mood* (new 'global 'mood-context))
 
-(set! (-> *jungle-mood* mood-fog-table) *village1-mood-fog-table*)
+(set! (-> *jungle-mood* mood-fog-table) *swamp-mood-fog-table*)
 
-(set! (-> *jungle-mood* mood-lights-table) *village1-mood-lights-table*)
+(set! (-> *jungle-mood* mood-lights-table) *village2-mood-lights-table*)
 
-(set! (-> *jungle-mood* mood-sun-table) *village1-mood-sun-table*)
+(set! (-> *jungle-mood* mood-sun-table) *village2-mood-sun-table*)
 
 (set! (-> *jungle-mood* fog-interp) *default-interp-table*)
 
-(set! (-> *jungle-mood* palette-interp) *village1-palette-interp-table*)
+(set! (-> *jungle-mood* palette-interp) *misty-palette-interp-table*)
 
-(set! (-> *jungle-mood* sky-texture-interp) *default-interp-table*)
+(set! (-> *jungle-mood* sky-texture-interp) *village2-sky-texture-table*)
 
 (set! (-> *jungle-mood* num-stars) 85.0)
 
@@ -3299,11 +3299,11 @@
 
 (define *misty-mood* (new 'global 'mood-context))
 
-(set! (-> *misty-mood* mood-fog-table) *misty-mood-fog-table*)
+(set! (-> *misty-mood* mood-fog-table) *swamp-mood-fog-table*)
 
-(set! (-> *misty-mood* mood-lights-table) *misty-mood-lights-table*)
+(set! (-> *misty-mood* mood-lights-table) *village2-mood-lights-table*)
 
-(set! (-> *misty-mood* mood-sun-table) *misty-mood-sun-table*)
+(set! (-> *misty-mood* mood-sun-table) *village2-mood-sun-table*)
 
 (set! (-> *misty-mood* fog-interp) *default-interp-table*)
 
@@ -3417,19 +3417,19 @@
 
 (define *training-mood* (new 'global 'mood-context))
 
-(set! (-> *training-mood* mood-fog-table) *training-mood-fog-table*)
+(set! (-> *training-mood* mood-fog-table) *swamp-mood-fog-table*)
 
-(set! (-> *training-mood* mood-lights-table) *village1-mood-lights-table*)
+(set! (-> *training-mood* mood-lights-table) *village2-mood-lights-table*)
 
-(set! (-> *training-mood* mood-sun-table) *village1-mood-sun-table*)
+(set! (-> *training-mood* mood-sun-table) *village2-mood-sun-table*)
 
 (set! (-> *training-mood* fog-interp) *default-interp-table*)
 
-(set! (-> *training-mood* palette-interp) *village1-palette-interp-table*)
+(set! (-> *training-mood* palette-interp) *misty-palette-interp-table*)
 
-(set! (-> *training-mood* sky-texture-interp) *default-interp-table*)
+(set! (-> *training-mood* sky-texture-interp) *village2-sky-texture-table*)
 
-(set! (-> *training-mood* num-stars) 85.0)
+(set! (-> *training-mood* num-stars) 0.0)
 
 (define *maincave-mood* (new 'global 'mood-context))
 
