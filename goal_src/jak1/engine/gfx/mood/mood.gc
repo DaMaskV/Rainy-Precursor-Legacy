@@ -256,7 +256,8 @@
            (or (= (-> *target* current-level name) 'beach)
                (= (-> *target* current-level name) 'jungle)
                (= (-> *target* current-level name) 'training)
-               (= (-> *target* current-level name) 'misty))) #t #f))
+               (= (-> *target* current-level name) 'misty)
+               (= (-> *target* current-level name) 'village2))) #t #f))
 
 (defun rainy-p14-outdoors? ()
   (or (rainy-sandover?) (rainy-p14-early-outdoors?)))
@@ -910,7 +911,7 @@
   ;; The Legacy dispatch below and native lightning effects remain unchanged.
   (when (and (= *rainy-mode* 'dynamic)
              (or (= ctx *village1-mood*) (= ctx *beach-mood*) (= ctx *jungle-mood*)
-                 (= ctx *training-mood*) (= ctx *misty-mood*)))
+                 (= ctx *training-mood*) (= ctx *misty-mood*) (= ctx *village2-mood*)))
     (let ((eligible (and (!= *rainy-preset* 0)
                          (rainy-gameplay?) (rainy-p14-outdoors?)
                          (>= *rainy-cloud* 0.95) (> *rainy-exposure* 0.0))))
@@ -925,7 +926,7 @@
   (when (or (= *rainy-mode* 'legacy)
             (not (or (= ctx *village1-mood*) (= ctx *beach-mood*)
                      (= ctx *jungle-mood*) (= ctx *training-mood*)
-                     (= ctx *misty-mood*) (rainy-sandover?)))
+                     (= ctx *misty-mood*) (= ctx *village2-mood*) (rainy-sandover?)))
             (and (!= *rainy-preset* 0)
                  (rainy-gameplay?) (rainy-p14-outdoors?)
                  (>= *rainy-cloud* 0.95) (> *rainy-exposure* 0.0)))
@@ -1063,6 +1064,21 @@
 
 (defun update-mood-village2 ((arg0 mood-context) (arg1 float) (arg2 int))
   (update-mood-fog arg0 arg1)
+  ;; Rock Village's native lighting, lightning, skies, and scripted effects
+  ;; remain intact. Only blend the evaluated fog toward the existing
+  ;; Boggy Swamp storm endpoint when the mod's weather is active.
+  (when (and (= *rainy-mode* 'dynamic) (= arg0 *village2-mood*)
+             (rainy-gameplay?) (> *rainy-fog* 0.0))
+    (update-mood-fog *rainy-storm-mood* arg1)
+    (vector4-lerp! (-> arg0 current-fog fog-color)
+                   (-> arg0 current-fog fog-color)
+                   (-> *rainy-storm-mood* current-fog fog-color) *rainy-fog*)
+    (vector4-lerp! (-> arg0 current-fog fog-dists)
+                   (-> arg0 current-fog fog-dists)
+                   (-> *rainy-storm-mood* current-fog fog-dists) *rainy-fog*)
+    (vector4-lerp! (-> arg0 current-fog erase-color)
+                   (-> arg0 current-fog erase-color)
+                   (-> *rainy-storm-mood* current-fog erase-color) *rainy-fog*))
   (update-mood-sky-texture arg0 arg1)
   (clear-mood-times arg0)
   (update-mood-palette arg0 arg1 arg2)
