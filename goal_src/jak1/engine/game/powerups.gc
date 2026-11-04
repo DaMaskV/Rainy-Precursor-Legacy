@@ -451,6 +451,7 @@
       (('swamp 'village1 'village2 'beach 'misty 'jungle 'training)
        (if (and (= *rainy-mode* 'dynamic)
                 (or (= (-> self current-level name) 'village1)
+                    (= (-> self current-level name) 'village2)
                     (= (-> self current-level name) 'beach)
                     (= (-> self current-level name) 'jungle)
                     (= (-> self current-level name) 'training)
