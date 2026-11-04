@@ -1,22 +1,13 @@
 # Rainy Precursor Legacy
 
-Rain and storm mod for Jak and Daxter: The Precursor Legacy on OpenGOAL.
+Weather mod for Jak and Daxter: The Precursor Legacy on OpenGOAL.
 
-## Changes
+Game Options > Rainy Weather offers Endless Rain (moderate continuous rain), Dynamic Weather (clear/rain/storm cycles), and Endless Storm (heavy rain, fog, periodic lightning and thunder where supported). The Endless modes switch immediately.
 
-- Rain in Geyser Rock, Sandover Village, Sentinel Beach, Misty Island, and Forbidden Jungle.
-- Lightning in Sandover Village, Sentinel Beach, Misty Island, and Forbidden Jungle.
-- Thunder and storm ambience in Sentinel Beach, Misty Island, and Forbidden Jungle.
-- Darker sky, fog, lighting, and environmental colors.
-- Recolored grass, ground, and terrain textures in Sandover Village and Sentinel Beach.
+Hold L3 + R3: Left = Endless Rain, Up = Dynamic Weather, Right = Endless Storm.
 
-## Notes
+Clear Skies Length: 30-60S, 2-5M or 5-10M before cloud buildup. Dynamic Weather uses 70% rain probability and 50% conditional storm probability. Cloud buildup: 30-90s; rain: 60-180s; storm: 60-120s; clearing: 30-60s. Transitions add time.
 
-- Geyser Rock has rain and darker weather, but no lightning or thunder.
-- Sandover Village keeps its original sound bank so story and cutscene voices remain intact.
-- Rain and lightning may still appear under roofs or in some interior spaces.
+Geyser Rock, Sandover Village, Sentinel Beach, Forbidden Jungle and Misty Island share a weather timeline. Geyser Rock has limited storm effects, and Forbidden Jungle's temple retains time without outdoor rain. Some rain may appear under roofs.
 
-## Requirements
-
-- OpenGOAL
-- Jak and Daxter: The Precursor Legacy game data
+Windows preview. Extract to a new folder, then run extractor.exe using your own legitimate Jak 1 ISO; launch gk.exe afterward. No original game data is included. This community mod is not affiliated with Naughty Dog or OpenGOAL.

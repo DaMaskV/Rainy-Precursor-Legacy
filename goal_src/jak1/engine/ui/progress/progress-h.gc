@@ -133,6 +133,8 @@
      (save-and-load-game)
      (memcard-saving-and-loading)
      (memcard-data-exists-save-and-load)
+     ;; Rainy P14-A3 private submenu
+     (rainy-weather-options)
      ;; the last one!
      (max))
    (defenum game-option-type
@@ -165,7 +167,9 @@
      (monitor)
      (controller)
      (binding-assignment)
-     (confirmation))) ;; end of PC_PORT = #t branch for enum initialization
+     (confirmation)
+     (rainy-preset)
+     (rainy-clear-period))) ;; end of PC_PORT = #t branch for enum initialization
   ) ;; end of PC_PORT cond
 
 (defenum game-option-menu

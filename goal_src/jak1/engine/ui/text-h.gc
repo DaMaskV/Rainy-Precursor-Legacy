@@ -803,6 +803,20 @@
   (pad-square #x2003)
 
   (save-and-load-game #x3000)
+  ;; Rainy P14-A3 private, reserved namespace
+  (rainy-options-name #x3100)
+  (rainy-preset-name #x3101)
+  (rainy-clear-period-name #x3102)
+  (rainy-classic #x3110)
+  (rainy-balanced #x3111)
+  (rainy-climate #x3112)
+  (rainy-storm-season #x3113)
+  (rainy-endless #x3114)
+  (rainy-short #x3120)
+  (rainy-normal #x3121)
+  (rainy-long #x3122)
+  (rainy-odds-help #x3130)
+  (rainy-timing-help #x3131)
   ;; GAME-TEXT-ID ENUM ENDS
   )
 

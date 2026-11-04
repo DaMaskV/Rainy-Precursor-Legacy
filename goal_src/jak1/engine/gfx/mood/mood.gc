@@ -8,6 +8,315 @@
 
 ;; note: modified for high fps
 
+;; BEGIN RAINY STAGE2 CONTROLLER
+(define *rainy-mode* 'legacy)
+(define *rainy-phase* 0)
+(define *rainy-cloud* 0.0)
+(define *rainy-fog* 0.0)
+(define *rainy-target-cloud* 0.0)
+(define *rainy-target-fog* 0.0)
+(define *rainy-remaining* 120.0)
+(define *rainy-transition-seconds* 30.0)
+(define *rainy-last-frame* -1)
+(define *rainy-exposure* 0.0)
+(define *rainy-roof-timer* 0.0)
+(define *rainy-eligible-last* #f)
+(define *rainy-rain-probability* 0.7)
+(define *rainy-storm-probability* 0.5)
+(define *rainy-lightning-was-eligible* #f)
+
+;; P14-A3 rain-only differentiation. Preferences retain R1 compatibility.
+;; 0 Endless Rain (light rain, no thunder or storm fog), 1 Dynamic Weather,
+;; 2/3 hidden legacy dynamic variants, 4 Endless Storm.
+;; Clear periods 0 Short, 1 Normal, 2 Long apply only to Dynamic Weather.
+(define *rainy-preset* 0)
+(define *rainy-last-dynamic-preset* 1)
+(define *rainy-clear-period* 1)
+(define *rainy-pending-classic* #f)
+(define *rainy-prefs-loaded* #f)
+(define *rainy-prefs-loading* #f)
+;; Read into temporary values first; apply only validated choices.
+(define *rainy-file-preset* 0)
+(define *rainy-file-last-dynamic* 1)
+(define *rainy-file-clear* 1)
+
+(defun rainy-prefs-path ()
+  (format (clear *pc-temp-string-1*) "~S/Mods/rainy-weather-settings.gc" *pc-settings-folder*)
+  *pc-temp-string-1*)
+
+(defun rainy-save-prefs ()
+  ;; Never change OpenGOAL's pc-settings.gc or a Jak save file.
+  (when (and *rainy-prefs-loaded* (not *rainy-prefs-loading*))
+    (pc-mkdir-file-path (rainy-prefs-path))
+    (let ((file (new 'stack 'file-stream (rainy-prefs-path) 'write)))
+      (when (file-stream-valid? file)
+        ;; Fixed 5-byte ASCII record; no PC settings parser dependency.
+        (format file "R1~D~D~D~%" *rainy-preset* *rainy-last-dynamic-preset* *rainy-clear-period*)
+        (file-stream-close file))))
+  (none))
+
+(defun rainy-apply-preset-probabilities ()
+  (case *rainy-preset*
+    ((2) (set! *rainy-rain-probability* 0.8)
+         (set! *rainy-storm-probability* 0.3))
+    ((3) (set! *rainy-rain-probability* 0.85)
+         (set! *rainy-storm-probability* 0.7))
+    (else (set! *rainy-rain-probability* 0.7)
+          (set! *rainy-storm-probability* 0.5)))
+  (none))
+
+(defun rainy-set-clear-period ((period int))
+  ;; Does not alter the countdown of an already running weather phase.
+  (when (and (>= period 0) (<= period 2))
+    (when (!= *rainy-clear-period* period)
+      (set! *rainy-clear-period* period)
+      (rainy-save-prefs)))
+  (none))
+
+(defun rainy-enter-phase ((phase int))
+  (set! *rainy-phase* phase)
+  (let ((low 30.0) (high 60.0))
+    (case phase
+      ((0) (set! *rainy-target-cloud* 0.0)
+       (case *rainy-clear-period*
+         ((0) (set! low 30.0) (set! high 60.0))
+         ((2) (set! low 300.0) (set! high 600.0))
+         (else (set! low 120.0) (set! high 300.0))))
+      ((1) (set! *rainy-target-cloud* 0.5) (set! high 90.0))
+      ((2) (set! *rainy-target-cloud* 0.75) (set! low 60.0) (set! high 180.0))
+      ((3) (set! *rainy-target-cloud* 1.0) (set! low 60.0) (set! high 120.0))
+      ;; Dedicated rain-only holding phase: cloudy but not storm-dark,
+      ;; while fog weight fades toward the clear-weather endpoint.
+      ((5) (set! *rainy-target-cloud* 0.65))
+      (else (set! *rainy-target-cloud* 0.0)))
+    (set! *rainy-target-fog* (if (= phase 5) 0.0 *rainy-target-cloud*))
+    (set! *rainy-remaining*
+          (+ (rand-vu-float-range low high)
+             (* (fmax 0.001 *rainy-transition-seconds*)
+                (fmax (fabs (- *rainy-target-cloud* *rainy-cloud*))
+                      (fabs (- *rainy-target-fog* *rainy-fog*)))))))
+  (none))
+
+(define *rainy-drip-camera* (the-as camera-master #f))
+(define *rainy-drip-time* (the-as time-frame 0))
+(define *rainy-drip-mult* 0.0)
+(define *rainy-drip-dynamic* #f)
+(defun rainy-release-drips ()
+  ;; Clear only the last event owned by this controller, never a newer splash.
+  (when (and *rainy-drip-camera* (= *camera* *rainy-drip-camera*)
+             (= (-> *camera* water-drip-time) *rainy-drip-time*)
+             (= (-> *camera* water-drip-mult) *rainy-drip-mult*))
+    (send-event *camera* 'part-water-drip 0.0 1.0))
+  (set! *rainy-drip-camera* (the-as camera-master #f))
+  (none))
+
+(defun rainy-select-preset ((preset int))
+  ;; All three visible choices remain on the controlled Dynamic render path.
+  ;; IDs and the versioned preferences record stay compatible with old A3.
+  (when (and (>= preset 0) (<= preset 4) (!= *rainy-preset* preset))
+    (let ((old-preset *rainy-preset*))
+      (set! *rainy-preset* preset)
+      (set! *rainy-pending-classic* #f)
+      ;; Only cycling Dynamic modes become the shortcut's remembered target.
+      (when (and (> preset 0) (< preset 4))
+        (set! *rainy-last-dynamic-preset* preset))
+      (rainy-apply-preset-probabilities)
+      (when (= *rainy-mode* 'legacy)
+        (rainy-release-drips)
+        (set! *rainy-mode* 'dynamic)
+        (set! *rainy-eligible-last* #f)
+        ;; When returning from the native Legacy path, start at its
+        ;; familiar wet endpoint, then blend into the requested mode.
+        (set! *rainy-cloud* 1.0)
+        (set! *rainy-fog* 1.0))
+      (cond
+        ((= preset 0)
+         ;; Endless Rain: rain-only endpoint, held without storm rerolls.
+         (rainy-enter-phase 5)
+         (set! *rainy-remaining* 999999.0))
+        ((= preset 4)
+         ;; Endless Storm: established maximum-intensity endpoint.
+         (rainy-enter-phase 3)
+         (set! *rainy-remaining* 999999.0))
+        ((or (= old-preset 0) (= old-preset 4))
+         ;; Return to Dynamic without snapping directly into dry weather.
+         (rainy-enter-phase 4)))
+      ;; Endless modes are explicit instant toggles (menu and controller).
+      ;; Snap the visual state to the endpoint on selection; keep the
+      ;; shared clock and gradual Dynamic transitions entirely unchanged.
+      ;; A thunder/lightning event is still scheduled by the existing
+      ;; bounded storm dispatcher, not forced on every menu selection.
+      (when (or (= preset 0) (= preset 4))
+        (set! *rainy-cloud* *rainy-target-cloud*)
+        (set! *rainy-fog* *rainy-target-fog*))
+      (rainy-save-prefs)
+      (format #t "Rainy preset: ~D~%" preset)))
+  (none))
+
+(defun rainy-load-prefs ()
+  ;; Version 1 record: R1[preset 0..4][last-dynamic legacy 1..4][clear 0..2].
+  ;; Old last-dynamic=4 is accepted as an input but normalized to fallback 1.
+  ;; Invalid records retain defaults. Use core file-stream-read, not late PC helpers.
+  (unless *rainy-prefs-loaded*
+    (set! *rainy-prefs-loaded* #t)
+    (set! *rainy-prefs-loading* #t)
+    (when (pc-filepath-exists? (rainy-prefs-path))
+      (let ((file (new 'stack 'file-stream (rainy-prefs-path) 'read)))
+        (when (file-stream-valid? file)
+          (let ((magic 0) (version 0) (preset 0) (last 0) (clear-choice 0))
+            (when (and (= (file-stream-read file (& magic) 1) 1)
+                       (= (file-stream-read file (& version) 1) 1)
+                       (= (file-stream-read file (& preset) 1) 1)
+                       (= (file-stream-read file (& last) 1) 1)
+                       (= (file-stream-read file (& clear-choice) 1) 1)
+                       (= magic #x52) (= version #x31)
+                       (>= preset #x30) (<= preset #x34)
+                       (>= last #x31) (<= last #x34)
+                       (>= clear-choice #x30) (<= clear-choice #x32))
+              (set! *rainy-file-preset* (- preset #x30))
+              (set! *rainy-file-last-dynamic* (- last #x30))
+              (set! *rainy-file-clear* (- clear-choice #x30))))
+          (file-stream-close file))))
+    (when (and (>= *rainy-file-clear* 0) (<= *rainy-file-clear* 2))
+      (rainy-set-clear-period *rainy-file-clear*))
+    (when (and (>= *rainy-file-last-dynamic* 1) (<= *rainy-file-last-dynamic* 3))
+      (set! *rainy-last-dynamic-preset* *rainy-file-last-dynamic*))
+    (if (and (>= *rainy-file-preset* 1) (<= *rainy-file-preset* 4))
+      (rainy-select-preset *rainy-file-preset*)
+      ;; Fresh profile or saved preset 0: initialize light rain directly,
+      ;; instead of leaving default Legacy weather active at startup.
+      (begin
+        (set! *rainy-mode* 'dynamic)
+        (set! *rainy-preset* 0)
+        (set! *rainy-phase* 5)
+        (set! *rainy-cloud* 0.65)
+        (set! *rainy-fog* 0.0)
+        (set! *rainy-target-cloud* 0.65)
+        (set! *rainy-target-fog* 0.0)
+        (set! *rainy-remaining* 999999.0)
+        (set! *rainy-eligible-last* #f)))
+    (set! *rainy-prefs-loading* #f))
+  (none))
+
+(defun rainy-select-mode ((mode symbol))
+  ;; Preserve the established L3+R3 hotkeys and last-selected Dynamic preset.
+  (cond
+    ((= mode 'legacy) (rainy-select-preset 0))
+    ((= mode 'dynamic) (rainy-select-preset *rainy-last-dynamic-preset*)))
+  (none))
+
+(defun rainy-advance-phase ()
+  (if (or (= *rainy-preset* 0) (= *rainy-preset* 4))
+    ;; No phase rerolls in either sustained mode.
+    (set! *rainy-remaining* 999999.0)
+    (case *rainy-phase*
+      ((0) (rainy-enter-phase 1))
+      ((1) (rainy-enter-phase (if (< (rand-vu-float-range 0.0 1.0) *rainy-rain-probability*) 2 4)))
+      ((2) (rainy-enter-phase (if (< (rand-vu-float-range 0.0 1.0) *rainy-storm-probability*) 3 4)))
+      ((3) (rainy-enter-phase 4))
+      (else (rainy-enter-phase 0))))
+  (none))
+
+(defun rainy-weather-step ((dt float) (eligible symbol))
+  ;; Caller must supply finite nonnegative simulation seconds, once per frame.
+  ;; eligible must exclude pause, loading, movies and unsupported environments.
+  (when (and (= *rainy-mode* 'dynamic) eligible (> dt 0.0))
+    (while (> dt 0.0)
+      (let ((slice (fmin dt *rainy-remaining*)))
+        ;; Adapted from Jak 2 mood-control init-weather!: seek by dt / speed.
+        (seek! *rainy-cloud* *rainy-target-cloud* (/ slice (fmax 0.001 *rainy-transition-seconds*)))
+        (seek! *rainy-fog* *rainy-target-fog* (/ slice (fmax 0.001 *rainy-transition-seconds*)))
+        (set! dt (- dt slice))
+        (set! *rainy-remaining* (- *rainy-remaining* slice))
+        (when (<= *rainy-remaining* 0.0) (rainy-advance-phase)))))
+  (none))
+
+(defun rainy-rain-intensity ()
+  ;; Dynamic and Endless Storm retain their original rain curve.
+  ;; Endless Rain needs independent precipitation: its storm-fog blend
+  ;; fades all the way to zero, but precipitation stays moderate.
+  ;; Cloud factor avoids an instant rain jump when coming from clear skies.
+  (if (= *rainy-preset* 0)
+    (fmin 1.0
+          (* (fmin 1.0 (/ (fmax 0.0 *rainy-cloud*) 0.65))
+             (+ 0.55 (* 0.45 (fmax 0.0 (fmin 1.0 *rainy-fog*))))))
+    (fmin 1.0 (* 4.0 (fmax 0.0 (- *rainy-cloud* 0.5))
+                      (fmax 0.0 (- *rainy-fog* 0.5))))))
+
+;; AI-assisted Stage 2 integration. Rainy P14-A3 settings stay in a separate mod file.
+(defun rainy-sandover? ()
+  (if (and *target* (-> *target* current-level)
+       (= (-> *target* current-level name) 'village1)
+       (= (-> *target* current-level status) 'active)) #t #f))
+
+(defun rainy-p14-early-outdoors? ()
+  ;; Regional expansion: only supported exterior levels emit dynamic rain.
+  (if (and *target* (-> *target* current-level)
+           (= (-> *target* current-level status) 'active)
+           (or (= (-> *target* current-level name) 'beach)
+               (= (-> *target* current-level name) 'jungle)
+               (= (-> *target* current-level name) 'training)
+               (= (-> *target* current-level name) 'misty))) #t #f))
+
+(defun rainy-p14-outdoors? ()
+  (or (rainy-sandover?) (rainy-p14-early-outdoors?)))
+
+(defun rainy-p14-temple? ()
+  ;; Keep the global phase clock advancing, but do not emit outdoor rain.
+  (if (and *target* (-> *target* current-level)
+           (= (-> *target* current-level status) 'active)
+           (= (-> *target* current-level name) 'jungleb)) #t #f))
+
+(defun rainy-gameplay? ()
+  (and (= *master-mode* 'game)
+       (or (rainy-p14-outdoors?) (rainy-p14-temple?))
+       (not (or (paused?) (movie?) *weather-off*))))
+
+(defun rainy-frame-update ()
+  ;; One call site, additionally guarded against repeated draws in one frame.
+  (when (!= *rainy-last-frame* (-> *display* real-actual-frame-counter))
+    (rainy-load-prefs)
+    (set! *rainy-last-frame* (-> *display* real-actual-frame-counter))
+    (when (and (= *master-mode* 'game) (not (movie?))
+               (cpad-hold? 0 l3) (cpad-hold? 0 r3))
+      (cond
+        ((cpad-pressed? 0 left) (rainy-select-mode 'legacy))
+        ((cpad-pressed? 0 right) (rainy-select-preset 4))
+        ;; Up restores the remembered cycling Dynamic Weather preset.
+        ((cpad-pressed? 0 up) (rainy-select-mode 'dynamic))))
+    (when (= *rainy-mode* 'dynamic)
+      (let ((eligible (rainy-gameplay?)))
+        (when (not eligible)
+          (set! *rainy-exposure* 0.0)
+          (when *rainy-drip-dynamic* (rainy-release-drips)))
+        (when (and eligible (not *rainy-eligible-last*))
+          (rainy-release-drips)
+          (set! *rainy-roof-timer* 0.0))
+        (set! *rainy-eligible-last* eligible)
+        (rainy-weather-step (fmin 0.1 (fmax 0.0 (seconds-per-frame))) eligible))))
+  (none))
+
+;; Two immutable table selections; only their evaluated values are writable.
+(define *rainy-clear-mood* (new 'global 'mood-context))
+(define *rainy-storm-mood* (new 'global 'mood-context))
+(set! (-> *rainy-clear-mood* mood-fog-table) *village1-mood-fog-table*)
+(set! (-> *rainy-clear-mood* mood-lights-table) *village1-mood-lights-table*)
+(set! (-> *rainy-clear-mood* mood-sun-table) *village1-mood-sun-table*)
+(set! (-> *rainy-clear-mood* fog-interp) *default-interp-table*)
+(set! (-> *rainy-clear-mood* palette-interp) *village1-palette-interp-table*)
+(set! (-> *rainy-clear-mood* sky-texture-interp) *default-interp-table*)
+(set! (-> *rainy-storm-mood* mood-fog-table) *swamp-mood-fog-table*)
+(set! (-> *rainy-storm-mood* mood-lights-table) *village2-mood-lights-table*)
+(set! (-> *rainy-storm-mood* mood-sun-table) *village2-mood-sun-table*)
+(set! (-> *rainy-storm-mood* fog-interp) *default-interp-table*)
+(set! (-> *rainy-storm-mood* palette-interp) *misty-palette-interp-table*)
+(set! (-> *rainy-storm-mood* sky-texture-interp) *village2-sky-texture-table*)
+(define *rainy-mask0* (new 'static 'array uint8 2 0 0))
+(define *rainy-mask1* (new 'static 'array uint8 2 0 0))
+(define *rainy-mask-interp* (new 'static 'boxed-array :type float 0.0 0.0))
+
+;; END RAINY STAGE2 CONTROLLER
+
 ;; DECOMP BEGINS
 
 (defun clear-mood-times ((arg0 mood-context))
@@ -338,6 +647,65 @@
                     arg3)))
   (none))
 
+
+;; Evaluate both endpoints at the SAME running day/night time. Do not swap or
+;; mutate the published mood tables, or call the full village callback twice.
+(defun rainy-evaluate-village ((out mood-context) (tod float) (slot int))
+  (dotimes (endpoint 2)
+    (let ((ctx (if (zero? endpoint) *rainy-clear-mood* *rainy-storm-mood*)))
+      (update-mood-fog ctx tod)
+      (update-mood-sky-texture ctx tod)
+      (clear-mood-times ctx)
+      (update-mood-palette ctx tod slot)
+      (set! (-> *rainy-mask0* endpoint) (-> *time-of-day-context* light-masks-0 slot))
+      (set! (-> *rainy-mask1* endpoint) (-> *time-of-day-context* light-masks-1 slot))
+      (set! (-> *rainy-mask-interp* endpoint) (-> *time-of-day-context* light-interp slot))))
+  (update-mood-interp out *rainy-clear-mood* *rainy-storm-mood* *rainy-cloud*)
+  ;; Fog now follows its own weight. In ordinary Dynamic phases, fog and
+  ;; cloud have identical targets, preserving the established visual path.
+  ;; Endless Rain blends to the CLEAR fog endpoint while retaining clouds.
+  (vector4-lerp! (-> out current-fog fog-color)
+                 (-> *rainy-clear-mood* current-fog fog-color)
+                 (-> *rainy-storm-mood* current-fog fog-color) *rainy-fog*)
+  (vector4-lerp! (-> out current-fog fog-dists)
+                 (-> *rainy-clear-mood* current-fog fog-dists)
+                 (-> *rainy-storm-mood* current-fog fog-dists) *rainy-fog*)
+  (vector4-lerp! (-> out current-fog erase-color)
+                 (-> *rainy-clear-mood* current-fog erase-color)
+                 (-> *rainy-storm-mood* current-fog erase-color) *rainy-fog*)
+  ;; Four temporal snapshot contributions can be active while weather blends.
+  ;; Preserve all eight palette channels, then quantize ONCE in update-mood-itimes.
+  (dotimes (i 8)
+    (set! (-> out times i w)
+          (+ (* (- 1.0 *rainy-cloud*) (-> *rainy-clear-mood* times i w))
+             (* *rainy-cloud* (-> *rainy-storm-mood* times i w))))
+    (set! (-> out sky-times i)
+          (+ (* (- 1.0 *rainy-cloud*) (-> *rainy-clear-mood* sky-times i))
+             (* *rainy-cloud* (-> *rainy-storm-mood* sky-times i)))))
+  ;; Exact endpoint masks. Mixed shadow evaluation below consumes BOTH pairs.
+  (let ((endpoint (if (= *rainy-cloud* 0.0) 0 1)))
+    (set! (-> *time-of-day-context* light-masks-0 slot) (-> *rainy-mask0* endpoint))
+    (set! (-> *time-of-day-context* light-masks-1 slot) (-> *rainy-mask1* endpoint))
+    (set! (-> *time-of-day-context* light-interp slot) (-> *rainy-mask-interp* endpoint)))
+  (none))
+
+(defun rainy-shadow-light! ((out light-group) (src light-group) (mask uint) (base float))
+  ;; Generalization of drawable.gc's two-mask test to two weighted endpoints.
+  ;; At 0 and 1 the ordinary mask path is used instead, retaining exact behavior.
+  (let ((shade 0.0) (keep0 0.0) (keep1 0.0))
+    (dotimes (endpoint 2)
+      (let* ((weight (if (zero? endpoint) (- 1.0 *rainy-cloud*) *rainy-cloud*))
+             (hit0 (nonzero? (logand mask (-> *rainy-mask0* endpoint))))
+             (hit1 (nonzero? (logand mask (-> *rainy-mask1* endpoint))))
+             (t (-> *rainy-mask-interp* endpoint)))
+        (+! shade (* weight (cond ((and hit0 hit1) 1.0) (hit0 (- 1.0 t)) (hit1 t) (else base))))
+        (+! keep0 (* weight (if (and hit0 (not hit1)) 0.0 1.0)))
+        (+! keep1 (* weight (if (and hit1 (not hit0)) 0.0 1.0)))))
+    (quad-copy! (the-as pointer out) (the-as pointer src) 12)
+    (*! (-> out dir0 levels x) keep0)
+    (*! (-> out dir1 levels x) keep1)
+    shade))
+
 (deftype flames-state (structure)
   ((index  uint8)
    (time   uint8)
@@ -443,7 +811,7 @@
   :pack-me)
 
 
-(defun update-mood-lightning ((arg0 mood-context) (arg1 int) (arg2 int) (arg3 int) (arg4 int) (arg5 float) (arg6 symbol))
+(defun update-mood-lightning-legacy ((arg0 mood-context) (arg1 int) (arg2 int) (arg3 int) (arg4 int) (arg5 float) (arg6 symbol))
   (local-vars (a3-2 (array float)))
   (with-pp
     (set! (-> arg0 light-group 0 dir2 levels x) 0.0)
@@ -536,6 +904,33 @@
         (-> gp-5 id)))
     (set! *lightning-frame-done* #t)
     (none)))
+
+(defun update-mood-lightning ((ctx mood-context) (a int) (b int) (c int) (d int) (e float) (f symbol))
+  ;; Eligible storm moods share one scheduler. Temple is timeline-only.
+  ;; The Legacy dispatch below and native lightning effects remain unchanged.
+  (when (and (= *rainy-mode* 'dynamic)
+             (or (= ctx *village1-mood*) (= ctx *beach-mood*) (= ctx *jungle-mood*)
+                 (= ctx *training-mood*) (= ctx *misty-mood*)))
+    (let ((eligible (and (!= *rainy-preset* 0)
+                         (rainy-gameplay?) (rainy-p14-outdoors?)
+                         (>= *rainy-cloud* 0.95) (> *rainy-exposure* 0.0))))
+      (cond
+        ((and eligible (not *rainy-lightning-was-eligible*))
+         (set! *lightning-time2* 180)
+         (set! *lightning-time* 0))
+        ((and (not eligible) *rainy-lightning-was-eligible*)
+         (set! *lightning-time2* 0)
+         (set! *lightning-time* 0)))
+      (set! *rainy-lightning-was-eligible* eligible)))
+  (when (or (= *rainy-mode* 'legacy)
+            (not (or (= ctx *village1-mood*) (= ctx *beach-mood*)
+                     (= ctx *jungle-mood*) (= ctx *training-mood*)
+                     (= ctx *misty-mood*) (rainy-sandover?)))
+            (and (!= *rainy-preset* 0)
+                 (rainy-gameplay?) (rainy-p14-outdoors?)
+                 (>= *rainy-cloud* 0.95) (> *rainy-exposure* 0.0)))
+    (update-mood-lightning-legacy ctx a b c d e f))
+  (none))
 
 (deftype light-time-state (structure)
   ((time uint8))
@@ -760,10 +1155,14 @@
 
 
 (defun update-mood-village1 ((arg0 mood-context) (arg1 float) (arg2 int))
-  (update-mood-fog arg0 arg1)
-  (update-mood-sky-texture arg0 arg1)
-  (clear-mood-times arg0)
-  (update-mood-palette arg0 arg1 arg2)
+  (cond
+    ((and (= *rainy-mode* 'dynamic) (= arg0 *village1-mood*))
+     (rainy-evaluate-village arg0 arg1 arg2))
+    (else
+      (update-mood-fog arg0 arg1)
+      (update-mood-sky-texture arg0 arg1)
+      (clear-mood-times arg0)
+      (update-mood-palette arg0 arg1 arg2)))
   (if *time-of-day-effects* (update-mood-flames arg0 5 1 0 0.5 0.001953125 1.0))
   (update-light-kit (-> arg0 light-group 1) (-> arg0 light-group 0 ambi) 1.0)
   (update-light-kit (-> arg0 light-group 2) (-> arg0 light-group 0 ambi) 1.0)

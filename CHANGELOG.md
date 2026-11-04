@@ -1,11 +1,9 @@
 # Changelog
 
+## 1.1.0-preview.1
+
+Three weather modes, instant shortcuts, persistent settings and shared weather across five areas.
+
 ## 1.0.0
 
-Initial release.
-
-- Added rain to Geyser Rock, Sandover Village, Sentinel Beach, Misty Island, and Forbidden Jungle.
-- Added lightning to Sandover Village, Sentinel Beach, Misty Island, and Forbidden Jungle.
-- Added storm ambience to Sentinel Beach, Misty Island, and Forbidden Jungle.
-- Added darker weather colors, lighting, fog, and skies.
-- Added recolored grass, ground, and terrain textures.
+Original rain and storm effects.
