@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.0 (2026-11-05)
+
+### Added
+- Rock Village is the sixth weather-enhanced region, joining the shared weather timeline.
+- Rock Village supports Endless Rain, Dynamic Weather and Endless Storm with the existing controller shortcuts and persistent settings.
+- The intense storm atmosphere blends Rock Village's native fog toward the existing Boggy Swamp storm fog settings.
+
+### Preserved
+- Rock Village's original level-specific lighting, lightning, thunder and other scripted mood behavior.
+- Boggy Swamp's native rainfall and storm behavior; Lost Precursor City remains outside the rain-enabled regions.
+- Existing weather behavior and menu settings in the five previously supported regions.
+
+### Notes
+- Built and tested in an isolated OpenGOAL installation. Rock Village weather modes, travel to Boggy Swamp and back, and exclusion of Lost Precursor City were checked in gameplay.
+- Previous known limitations, including some indoor rain at certain positions/camera angles and Geyser Rock's limited storm effects, remain.
+
 ## 1.1.0 (2026-11-04)
 
 **Complete overhaul** of the original weather system. This stable release promotes the verified 1.1.0 preview with no gameplay-code changes.
