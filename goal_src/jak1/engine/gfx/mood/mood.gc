@@ -27,11 +27,13 @@
 
 ;; P14-A3 rain-only differentiation. Preferences retain R1 compatibility.
 ;; 0 Endless Rain (light rain, no thunder or storm fog), 1 Dynamic Weather,
-;; 2/3 hidden legacy dynamic variants, 4 Endless Storm.
+;; 2/3 hidden legacy dynamic variants, 4 Endless Storm, 5 Dry Storm.
 ;; Clear periods 0 Short, 1 Normal, 2 Long apply only to Dynamic Weather.
 (define *rainy-preset* 0)
 (define *rainy-last-dynamic-preset* 1)
 (define *rainy-clear-period* 1)
+;; 0 Permanent (v1.2 appearance), 1 Dynamic (Beach fog distances only).
+(define *rainy-beach-fog* 0)
 (define *rainy-pending-classic* #f)
 (define *rainy-prefs-loaded* #f)
 (define *rainy-prefs-loading* #f)
@@ -39,6 +41,7 @@
 (define *rainy-file-preset* 0)
 (define *rainy-file-last-dynamic* 1)
 (define *rainy-file-clear* 1)
+(define *rainy-file-beach-fog* 0)
 
 (defun rainy-prefs-path ()
   (format (clear *pc-temp-string-1*) "~S/Mods/rainy-weather-settings.gc" *pc-settings-folder*)
@@ -50,8 +53,8 @@
     (pc-mkdir-file-path (rainy-prefs-path))
     (let ((file (new 'stack 'file-stream (rainy-prefs-path) 'write)))
       (when (file-stream-valid? file)
-        ;; Fixed 5-byte ASCII record; no PC settings parser dependency.
-        (format file "R1~D~D~D~%" *rainy-preset* *rainy-last-dynamic-preset* *rainy-clear-period*)
+        ;; R1 original three digits + optional Beach digit; older readers keep first three.
+        (format file "R1~D~D~D~D~%" *rainy-preset* *rainy-last-dynamic-preset* *rainy-clear-period* *rainy-beach-fog*)
         (file-stream-close file))))
   (none))
 
@@ -71,6 +74,13 @@
     (when (!= *rainy-clear-period* period)
       (set! *rainy-clear-period* period)
       (rainy-save-prefs)))
+  (none))
+
+(defun rainy-set-beach-fog ((choice int))
+  ;; Independent of Weather Mode; no phase changes or global fog-table writes.
+  (when (and (>= choice 0) (<= choice 1) (!= *rainy-beach-fog* choice))
+    (set! *rainy-beach-fog* choice)
+    (rainy-save-prefs))
   (none))
 
 (defun rainy-enter-phase ((phase int))
@@ -111,9 +121,9 @@
   (none))
 
 (defun rainy-select-preset ((preset int))
-  ;; All three visible choices remain on the controlled Dynamic render path.
+  ;; All four visible choices remain on the controlled Dynamic render path.
   ;; IDs and the versioned preferences record stay compatible with old A3.
-  (when (and (>= preset 0) (<= preset 4) (!= *rainy-preset* preset))
+  (when (and (>= preset 0) (<= preset 5) (!= *rainy-preset* preset))
     (let ((old-preset *rainy-preset*))
       (set! *rainy-preset* preset)
       (set! *rainy-pending-classic* #f)
@@ -134,11 +144,11 @@
          ;; Endless Rain: rain-only endpoint, held without storm rerolls.
          (rainy-enter-phase 5)
          (set! *rainy-remaining* 999999.0))
-        ((= preset 4)
-         ;; Endless Storm: established maximum-intensity endpoint.
+        ((or (= preset 4) (= preset 5))
+         ;; Both storm presets share the established maximum-intensity endpoint.
          (rainy-enter-phase 3)
          (set! *rainy-remaining* 999999.0))
-        ((or (= old-preset 0) (= old-preset 4))
+        ((or (= old-preset 0) (= old-preset 4) (= old-preset 5))
          ;; Return to Dynamic without snapping directly into dry weather.
          (rainy-enter-phase 4)))
       ;; Endless modes are explicit instant toggles (menu and controller).
@@ -146,7 +156,7 @@
       ;; shared clock and gradual Dynamic transitions entirely unchanged.
       ;; A thunder/lightning event is still scheduled by the existing
       ;; bounded storm dispatcher, not forced on every menu selection.
-      (when (or (= preset 0) (= preset 4))
+      (when (or (= preset 0) (= preset 4) (= preset 5))
         (set! *rainy-cloud* *rainy-target-cloud*)
         (set! *rainy-fog* *rainy-target-fog*))
       (rainy-save-prefs)
@@ -154,7 +164,7 @@
   (none))
 
 (defun rainy-load-prefs ()
-  ;; Version 1 record: R1[preset 0..4][last-dynamic legacy 1..4][clear 0..2].
+  ;; R1 prefix unchanged; optional fourth digit is Beach fog 0 Permanent / 1 Dynamic.
   ;; Old last-dynamic=4 is accepted as an input but normalized to fallback 1.
   ;; Invalid records retain defaults. Use core file-stream-read, not late PC helpers.
   (unless *rainy-prefs-loaded*
@@ -163,25 +173,30 @@
     (when (pc-filepath-exists? (rainy-prefs-path))
       (let ((file (new 'stack 'file-stream (rainy-prefs-path) 'read)))
         (when (file-stream-valid? file)
-          (let ((magic 0) (version 0) (preset 0) (last 0) (clear-choice 0))
+          (let ((magic 0) (version 0) (preset 0) (last 0) (clear-choice 0) (beach-choice 0))
             (when (and (= (file-stream-read file (& magic) 1) 1)
                        (= (file-stream-read file (& version) 1) 1)
                        (= (file-stream-read file (& preset) 1) 1)
                        (= (file-stream-read file (& last) 1) 1)
                        (= (file-stream-read file (& clear-choice) 1) 1)
                        (= magic #x52) (= version #x31)
-                       (>= preset #x30) (<= preset #x34)
+                       (>= preset #x30) (<= preset #x35)
                        (>= last #x31) (<= last #x34)
                        (>= clear-choice #x30) (<= clear-choice #x32))
               (set! *rainy-file-preset* (- preset #x30))
               (set! *rainy-file-last-dynamic* (- last #x30))
-              (set! *rainy-file-clear* (- clear-choice #x30))))
+              (set! *rainy-file-clear* (- clear-choice #x30))
+              ;; Older R1 records end here (or with newline), so default to Permanent.
+              (when (= (file-stream-read file (& beach-choice) 1) 1)
+                (when (and (>= beach-choice #x30) (<= beach-choice #x31))
+                  (set! *rainy-file-beach-fog* (- beach-choice #x30))))))
           (file-stream-close file))))
     (when (and (>= *rainy-file-clear* 0) (<= *rainy-file-clear* 2))
       (rainy-set-clear-period *rainy-file-clear*))
+    (rainy-set-beach-fog *rainy-file-beach-fog*)
     (when (and (>= *rainy-file-last-dynamic* 1) (<= *rainy-file-last-dynamic* 3))
       (set! *rainy-last-dynamic-preset* *rainy-file-last-dynamic*))
-    (if (and (>= *rainy-file-preset* 1) (<= *rainy-file-preset* 4))
+    (if (and (>= *rainy-file-preset* 1) (<= *rainy-file-preset* 5))
       (rainy-select-preset *rainy-file-preset*)
       ;; Fresh profile or saved preset 0: initialize light rain directly,
       ;; instead of leaving default Legacy weather active at startup.
@@ -206,7 +221,7 @@
   (none))
 
 (defun rainy-advance-phase ()
-  (if (or (= *rainy-preset* 0) (= *rainy-preset* 4))
+  (if (or (= *rainy-preset* 0) (= *rainy-preset* 4) (= *rainy-preset* 5))
     ;; No phase rerolls in either sustained mode.
     (set! *rainy-remaining* 999999.0)
     (case *rainy-phase*
@@ -232,16 +247,16 @@
   (none))
 
 (defun rainy-rain-intensity ()
-  ;; Dynamic and Endless Storm retain their original rain curve.
-  ;; Endless Rain needs independent precipitation: its storm-fog blend
-  ;; fades all the way to zero, but precipitation stays moderate.
-  ;; Cloud factor avoids an instant rain jump when coming from clear skies.
-  (if (= *rainy-preset* 0)
-    (fmin 1.0
-          (* (fmin 1.0 (/ (fmax 0.0 *rainy-cloud*) 0.65))
-             (+ 0.55 (* 0.45 (fmax 0.0 (fmin 1.0 *rainy-fog*))))))
-    (fmin 1.0 (* 4.0 (fmax 0.0 (- *rainy-cloud* 0.5))
-                      (fmax 0.0 (- *rainy-fog* 0.5))))))
+  ;; Dry Storm has full storm sky/fog/lightning but never emits precipitation.
+  ;; The existing three visible presets retain their original rain curves.
+  (if (= *rainy-preset* 5)
+    0.0
+    (if (= *rainy-preset* 0)
+      (fmin 1.0
+            (* (fmin 1.0 (/ (fmax 0.0 *rainy-cloud*) 0.65))
+               (+ 0.55 (* 0.45 (fmax 0.0 (fmin 1.0 *rainy-fog*))))))
+      (fmin 1.0 (* 4.0 (fmax 0.0 (- *rainy-cloud* 0.5))
+                        (fmax 0.0 (- *rainy-fog* 0.5)))))))
 
 ;; AI-assisted Stage 2 integration. Rainy P14-A3 settings stay in a separate mod file.
 (defun rainy-sandover? ()
@@ -284,7 +299,8 @@
         ((cpad-pressed? 0 left) (rainy-select-mode 'legacy))
         ((cpad-pressed? 0 right) (rainy-select-preset 4))
         ;; Up restores the remembered cycling Dynamic Weather preset.
-        ((cpad-pressed? 0 up) (rainy-select-mode 'dynamic))))
+        ((cpad-pressed? 0 up) (rainy-select-mode 'dynamic))
+        ((cpad-pressed? 0 down) (rainy-select-preset 5))))
     (when (= *rainy-mode* 'dynamic)
       (let ((eligible (rainy-gameplay?)))
         (when (not eligible)
@@ -914,7 +930,7 @@
                  (= ctx *training-mood*) (= ctx *misty-mood*) (= ctx *village2-mood*)))
     (let ((eligible (and (!= *rainy-preset* 0)
                          (rainy-gameplay?) (rainy-p14-outdoors?)
-                         (>= *rainy-cloud* 0.95) (> *rainy-exposure* 0.0))))
+                         (>= *rainy-cloud* 0.95) (or (= *rainy-preset* 5) (> *rainy-exposure* 0.0)))))
       (cond
         ((and eligible (not *rainy-lightning-was-eligible*))
          (set! *lightning-time2* 180)
@@ -929,7 +945,7 @@
                      (= ctx *misty-mood*) (= ctx *village2-mood*) (rainy-sandover?)))
             (and (!= *rainy-preset* 0)
                  (rainy-gameplay?) (rainy-p14-outdoors?)
-                 (>= *rainy-cloud* 0.95) (> *rainy-exposure* 0.0)))
+                 (>= *rainy-cloud* 0.95) (or (= *rainy-preset* 5) (> *rainy-exposure* 0.0))))
     (update-mood-lightning-legacy ctx a b c d e f))
   (none))
 
@@ -1176,6 +1192,15 @@
      (rainy-evaluate-village arg0 arg1 arg2))
     (else
       (update-mood-fog arg0 arg1)
+      ;; Prototype B: Beach only. Keep the native blue-green color and erase
+       ;; color. Weather changes fog distance, using existing lighter endpoint.
+      (when (and (= arg0 *beach-mood*) (= *rainy-beach-fog* 1)
+                 (= *rainy-mode* 'dynamic))
+        (update-mood-fog *rainy-clear-mood* arg1)
+        (let ((storm-strength (fmax 0.0 (fmin 1.0 (* 4.0 (- *rainy-fog* 0.75))))))
+          (vector4-lerp! (-> arg0 current-fog fog-dists)
+                         (-> *rainy-clear-mood* current-fog fog-dists)
+                         (-> arg0 current-fog fog-dists) storm-strength)))
       (update-mood-sky-texture arg0 arg1)
       (clear-mood-times arg0)
       (update-mood-palette arg0 arg1 arg2)))

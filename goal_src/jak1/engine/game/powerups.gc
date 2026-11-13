@@ -456,7 +456,11 @@
                     (= (-> self current-level name) 'jungle)
                     (= (-> self current-level name) 'training)
                     (= (-> self current-level name) 'misty)))
-           (rainy-update-rain self)
+           (if (= *rainy-preset* 5)
+             (begin
+               (set! *rainy-exposure* 0.0)
+               (rainy-release-drips))
+             (rainy-update-rain self))
            (begin (update-rain self) (rainy-note-native-drips))))
       (('snow) (update-snow self))))
   (cond

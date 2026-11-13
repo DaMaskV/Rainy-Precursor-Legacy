@@ -774,6 +774,14 @@
                                (+ 128.0 (* -68.0 sky-weight))
                                (+ 128.0 (* -62.0 sky-weight))
                                (+ 128.0 (* -48.0 sky-weight)) 128.0))))
+            ;; Prototype A: storm-only roof tint. No cloud or rain parameter changes.
+            ;; The outdoor predicate includes village2 without altering its rain baseline.
+            (when (and (= *rainy-mode* 'dynamic) (rainy-p14-outdoors?) (> *rainy-fog* 0.75))
+             (let ((storm-strength (fmin 1.0 (* 4.0 (- *rainy-fog* 0.75)))))
+                (dotimes (i 12)
+                  (+! (-> sky-roof-polygons i col x) (* -20.0 storm-strength))
+                  (+! (-> sky-roof-polygons i col y) (* -22.0 storm-strength))
+                  (+! (-> sky-roof-polygons i col z) (* -28.0 storm-strength)))))
             (render-sky-tri (the-as (inline-array sky-vertex) (-> sky-roof-polygons 0)) s4-0)
             (render-sky-tri (the-as (inline-array sky-vertex) (-> sky-roof-polygons 3)) s4-0)
             (render-sky-tri (the-as (inline-array sky-vertex) (-> sky-roof-polygons 6)) s4-0)

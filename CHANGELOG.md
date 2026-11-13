@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0 (2026-11-12)
+
+### Added and improved
+- Added Beach Fog setting with Permanent and Dynamic options.
+- Dynamic fog now adjusts with weather conditions instead of remaining permanently heavy during rain.
+- Endless Storm sky has been darkened so it better fits the stormy vibe and is visibly different from the Rain one.
+- Added Dry Storm as a fourth weather mode, with the storm atmosphere and lightning/thunder where supported but without rainfall.
+- Added Rainy Weather menu strings for 21 additional languages; 23 configured language slots are now populated.
+- Added L3 + R3 + Down for Dry Storm, alongside the existing Left, Up and Right shortcuts.
+
+### Compatibility and verification
+- Preserved backward compatibility with existing R1 weather preferences.
+- Tested clean and legacy profile behavior, including independent Beach Fog settings and persistence across restarts.
+- Compiled 23 language text archives; native-speaker proofreading and complete language-layout verification remain open.
+- Existing known limitations from v1.2.0 remain.
+
 ## 1.2.0 (2026-11-05)
 
 ### Added

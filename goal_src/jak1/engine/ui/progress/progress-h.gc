@@ -169,7 +169,8 @@
      (binding-assignment)
      (confirmation)
      (rainy-preset)
-     (rainy-clear-period))) ;; end of PC_PORT = #t branch for enum initialization
+     (rainy-clear-period)
+      (rainy-beach-fog))) ;; end of PC_PORT = #t branch for enum initialization
   ) ;; end of PC_PORT cond
 
 (defenum game-option-menu

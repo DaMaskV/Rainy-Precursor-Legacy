@@ -91,15 +91,17 @@
 (def-progress-carousell *carousell-display-mode* (windowed fullscreen borderless))
 
 ;; Rainy P14-A3: player-visible names include odds or a concise behavior.
-(def-progress-carousell *carousell-rainy-preset* (rainy-classic rainy-balanced rainy-endless))
-;; Keep the five backend preset IDs for existing saves, but expose three
-;; distinct player choices. Old dynamic variants display as Dynamic Weather.
+(def-progress-carousell *carousell-rainy-preset* (rainy-classic rainy-balanced rainy-endless rainy-dry-storm))
+;; Preserve backend preset IDs 0..4; add ID 5 for the fourth visible mode.
+;; Hidden dynamic variants continue to display as Dynamic Weather.
 (defun rainy-ui-preset-index ()
   (case *rainy-preset*
     ((0) 0)
     ((4) 2)
+    ((5) 3)
     (else 1)))
 (def-progress-carousell *carousell-rainy-clear* (rainy-short rainy-normal rainy-long))
+(def-progress-carousell *carousell-rainy-beach* (rainy-beach-permanent rainy-beach-dynamic))
 
 (def-progress-carousell *carousell-msaa* (off 2-times 4-times 8-times 16-times))
 
@@ -288,7 +290,10 @@
        (new 'static 'game-option
             :option-type (game-option-type rainy-clear-period)
             :name (text-id rainy-clear-period-name) :scale #t
-            :option-disabled-func (lambda () (or (= *rainy-preset* 0) (= *rainy-preset* 4))))
+            :option-disabled-func (lambda () (or (= *rainy-preset* 0) (= *rainy-preset* 4) (= *rainy-preset* 5))))
+       (new 'static 'game-option
+            :option-type (game-option-type rainy-beach-fog)
+            :name (text-id rainy-beach-fog-name) :scale #t)
        ;; Probability and timing detail belongs in documentation, not in
        ;; two non-interactive lines that look like selectable menu options.
        (new 'static 'game-option :option-type (game-option-type button) :name (text-id back) :scale #t)))
@@ -2187,6 +2192,7 @@
   (set! (-> *game-options-pc* 7 value-to-modify) (&-> *progress-carousell* int-backup))
   (set! (-> *rainy-options-pc* 0 value-to-modify) (&-> *progress-carousell* int-backup))
   (set! (-> *rainy-options-pc* 1 value-to-modify) (&-> *progress-carousell* int-backup))
+  (set! (-> *rainy-options-pc* 2 value-to-modify) (&-> *progress-carousell* int-backup))
   (set! (-> *graphic-options-pc* 1 value-to-modify) (&-> *progress-carousell* int-backup))
   (set! (-> *graphic-options-pc* 3 value-to-modify) (&-> *pc-settings* vsync?))
   (set! (-> *graphic-options-pc* 5 value-to-modify) (&-> *progress-carousell* int-backup))
@@ -2335,7 +2341,8 @@
                     (game-option-type language-subtitles)
                     (game-option-type language-text)
                     (game-option-type rainy-preset)
-                    (game-option-type rainy-clear-period))
+                    (game-option-type rainy-clear-period)
+                    (game-option-type rainy-beach-fog))
                    ;; a carousell like language
                    (if (> (-> (the-as (pointer int) (-> options (-> obj option-index) value-to-modify))) 0)
                      (+! (-> (the-as (pointer int) (-> options (-> obj option-index) value-to-modify))) -1)
@@ -2423,7 +2430,8 @@
                     (game-option-type language-subtitles)
                     (game-option-type language-text)
                     (game-option-type rainy-preset)
-                    (game-option-type rainy-clear-period))
+                    (game-option-type rainy-clear-period)
+                    (game-option-type rainy-beach-fog))
                    ;; same thing as before. if at last, go to first. otherwise, keep going forward.
                    (if (< (-> (the-as (pointer int) (-> options (-> obj option-index) value-to-modify)))
                           (1- (length (-> *progress-carousell* current-carousell))))
@@ -2751,6 +2759,8 @@
                   (set! (-> *progress-carousell* int-backup) (rainy-ui-preset-index)))
                  (((game-option-type rainy-clear-period))
                   (set! (-> *progress-carousell* int-backup) *rainy-clear-period*))
+                 (((game-option-type rainy-beach-fog))
+                  (set! (-> *progress-carousell* int-backup) *rainy-beach-fog*))
                  (((game-option-type speaker))
                   (case (-> *pc-settings* subtitle-speaker?)
                     ((#t) (set! (-> *progress-carousell* int-backup) 0))
@@ -2793,6 +2803,7 @@
                     (((game-option-type frame-rate)) (set! (-> *progress-carousell* current-carousell) *carousell-frame-rate*))
                     (((game-option-type rainy-preset)) (set! (-> *progress-carousell* current-carousell) *carousell-rainy-preset*))
                     (((game-option-type rainy-clear-period)) (set! (-> *progress-carousell* current-carousell) *carousell-rainy-clear*))
+                    (((game-option-type rainy-beach-fog)) (set! (-> *progress-carousell* current-carousell) *carousell-rainy-beach*))
                     (((game-option-type language-subtitles)) (set! (-> *progress-carousell* current-carousell) *subtitle-languages*))
                     (((game-option-type language-text)) (set! (-> *progress-carousell* current-carousell) *text-languages*))))))))
            (else
@@ -2821,13 +2832,16 @@
                  (set! (-> *setting-control* current aspect-ratio) #f)
                  (set-aspect! *pc-settings* (-> *pc-settings* aspect-custom-x) (-> *pc-settings* aspect-custom-y))))
               (((game-option-type rainy-preset))
-               ;; UI indices 0/1/2 map to unchanged controller IDs 0/1/4.
+               ;; UI indices 0/1/2/3 map to controller IDs 0/1/4/5.
                (case (-> *progress-carousell* int-backup)
                  ((0) (rainy-select-preset 0))
                  ((1) (rainy-select-preset 1))
-                 ((2) (rainy-select-preset 4))))
+                 ((2) (rainy-select-preset 4))
+                 ((3) (rainy-select-preset 5))))
               (((game-option-type rainy-clear-period))
                (rainy-set-clear-period (-> *progress-carousell* int-backup)))
+              (((game-option-type rainy-beach-fog))
+               (rainy-set-beach-fog (-> *progress-carousell* int-backup)))
               (((game-option-type display-mode))
                ;; same thing.
                (case (-> *progress-carousell* int-backup)
@@ -3250,7 +3264,8 @@
                       (game-option-type language-subtitles)
                       (game-option-type language-text)
                     (game-option-type rainy-preset)
-                    (game-option-type rainy-clear-period))
+                    (game-option-type rainy-clear-period)
+                    (game-option-type rainy-beach-fog))
                      ;; crunched down to one generic function.
                      (progress-draw-carousell-from-string-list (-> *progress-carousell* current-carousell)
                                                                font
@@ -3405,7 +3420,13 @@
                            (string-format "~S: ~S"
                                           (lookup-text! *common-text* (-> options index name) #f)
                                           (lookup-text! *common-text*
-                                                        (-> *carousell-rainy-clear* *rainy-clear-period*) #f)))))))))
+                                                        (-> *carousell-rainy-clear* *rainy-clear-period*) #f))))
+                    (((game-option-type rainy-beach-fog))
+                     (set! option-str
+                           (string-format "~S: ~S"
+                                          (lookup-text! *common-text* (-> options index name) #f)
+                                           (lookup-text! *common-text*
+                                                        (-> *carousell-rainy-beach* *rainy-beach-fog*) #f)))))))))
             (when (or (<= (length options) PROGRESS_PC_PAGE_HEIGHT)
                       (and (not (progress-scrolling?)) (>= index *progress-scroll-start*) (< index *progress-scroll-end*))
                       (and (progress-scrolling-down?) (>= index (1- *progress-scroll-start*)) (< index *progress-scroll-end*))
