@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 (2026-11-22)
+
+- Added rainfall to Fire Canyon.
+- Rain now continues during supported outdoor cinematics in Forbidden Jungle.
+- Added a **Fog: On / Off** setting for supported outdoor areas. On keeps the familiar rainy atmosphere; Off reduces fog while retaining natural distant haze.
+- Rebalanced rainfall intensity across weather modes.
+- Recolored select flowers to better match the darker ground textures.
+- Recolored Forbidden Jungle rocks to improve contrast and visual consistency.
+
+Existing weather modes, controls, and saved preferences remain available.
+
 ## 1.3.0 (2026-11-12)
 
 ### Added and improved

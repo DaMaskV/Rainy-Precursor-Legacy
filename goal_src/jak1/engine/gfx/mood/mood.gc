@@ -272,7 +272,8 @@
                (= (-> *target* current-level name) 'jungle)
                (= (-> *target* current-level name) 'training)
                (= (-> *target* current-level name) 'misty)
-               (= (-> *target* current-level name) 'village2))) #t #f))
+               (= (-> *target* current-level name) 'village2)
+                (= (-> *target* current-level name) 'firecanyon))) #t #f))
 
 (defun rainy-p14-outdoors? ()
   (or (rainy-sandover?) (rainy-p14-early-outdoors?)))
@@ -283,10 +284,19 @@
            (= (-> *target* current-level status) 'active)
            (= (-> *target* current-level name) 'jungleb)) #t #f))
 
+;; PRIVATE EXPERIMENT: outdoor Forbidden Jungle movies only. The opening
+;; cinematic and other regions continue to follow the v1.3.0 movie exclusion.
+;; This does not prove target-powerup-process is active during a cutscene.
+(defun rainy-jungle-cinematic-test? ()
+  (and (movie?)
+       (rainy-p14-early-outdoors?)
+       (= (-> *target* current-level name) 'jungle)))
+
 (defun rainy-gameplay? ()
   (and (= *master-mode* 'game)
        (or (rainy-p14-outdoors?) (rainy-p14-temple?))
-       (not (or (paused?) (movie?) *weather-off*))))
+       (not (or (paused?) *weather-off*))
+       (or (not (movie?)) (rainy-jungle-cinematic-test?))))
 
 (defun rainy-frame-update ()
   ;; One call site, additionally guarded against repeated draws in one frame.
@@ -310,7 +320,8 @@
           (rainy-release-drips)
           (set! *rainy-roof-timer* 0.0))
         (set! *rainy-eligible-last* eligible)
-        (rainy-weather-step (fmin 0.1 (fmax 0.0 (seconds-per-frame))) eligible))))
+        (rainy-weather-step (fmin 0.1 (fmax 0.0 (seconds-per-frame)))
+                            (and eligible (not (movie?)))))))
   (none))
 
 ;; Two immutable table selections; only their evaluated values are writable.
@@ -667,6 +678,24 @@
 
 ;; Evaluate both endpoints at the SAME running day/night time. Do not swap or
 ;; mutate the published mood tables, or call the full village callback twice.
+;; v1.4.0: opt-in distance-only fog reduction for Rainy's outdoor areas.
+;; Original option 0 leaves the existing v1.3.0 weather lighting/fog untouched.
+;; Option 1 preserves each level's native fog colors, max/min and sky.
+;; Fog ON: unchanged approved atmosphere.
+;; Fog OFF: lighten the distance haze while keeping the normal horizon fade.
+;; Keep original level fog colors, start/end distances and sky untouched.
+(defun rainy-universal-fog-reduce ((ctx mood-context))
+  (when (and (= *rainy-mode* 'dynamic)
+             (= *rainy-beach-fog* 1)
+             (rainy-p14-outdoors?)
+             (= *master-mode* 'game)
+             (not (or (movie?) (paused?) *weather-off*)))
+    (set! (-> ctx current-fog fog-dists z)
+          (+ 255.0 (* 0.55 (- (-> ctx current-fog fog-dists z) 255.0))))
+    (set! (-> ctx current-fog fog-dists w)
+          (+ 255.0 (* 0.55 (- (-> ctx current-fog fog-dists w) 255.0)))))
+  (none))
+
 (defun rainy-evaluate-village ((out mood-context) (tod float) (slot int))
   (dotimes (endpoint 2)
     (let ((ctx (if (zero? endpoint) *rainy-clear-mood* *rainy-storm-mood*)))
@@ -690,6 +719,7 @@
   (vector4-lerp! (-> out current-fog erase-color)
                  (-> *rainy-clear-mood* current-fog erase-color)
                  (-> *rainy-storm-mood* current-fog erase-color) *rainy-fog*)
+  (rainy-universal-fog-reduce out)
   ;; Four temporal snapshot contributions can be active while weather blends.
   ;; Preserve all eight palette channels, then quantize ONCE in update-mood-itimes.
   (dotimes (i 8)
@@ -1041,6 +1071,7 @@
 
 (defun update-mood-misty ((arg0 mood-context) (arg1 float) (arg2 int))
   (update-mood-fog arg0 arg1)
+  (rainy-universal-fog-reduce arg0)
   (update-mood-sky-texture arg0 arg1)
   (clear-mood-times arg0)
   (update-mood-palette arg0 arg1 arg2)
@@ -1095,6 +1126,7 @@
     (vector4-lerp! (-> arg0 current-fog erase-color)
                    (-> arg0 current-fog erase-color)
                    (-> *rainy-storm-mood* current-fog erase-color) *rainy-fog*))
+  (rainy-universal-fog-reduce arg0)
   (update-mood-sky-texture arg0 arg1)
   (clear-mood-times arg0)
   (update-mood-palette arg0 arg1 arg2)
@@ -1192,15 +1224,7 @@
      (rainy-evaluate-village arg0 arg1 arg2))
     (else
       (update-mood-fog arg0 arg1)
-      ;; Prototype B: Beach only. Keep the native blue-green color and erase
-       ;; color. Weather changes fog distance, using existing lighter endpoint.
-      (when (and (= arg0 *beach-mood*) (= *rainy-beach-fog* 1)
-                 (= *rainy-mode* 'dynamic))
-        (update-mood-fog *rainy-clear-mood* arg1)
-        (let ((storm-strength (fmax 0.0 (fmin 1.0 (* 4.0 (- *rainy-fog* 0.75))))))
-          (vector4-lerp! (-> arg0 current-fog fog-dists)
-                         (-> *rainy-clear-mood* current-fog fog-dists)
-                         (-> arg0 current-fog fog-dists) storm-strength)))
+      (rainy-universal-fog-reduce arg0)
       (update-mood-sky-texture arg0 arg1)
       (clear-mood-times arg0)
       (update-mood-palette arg0 arg1 arg2)))
@@ -1275,6 +1299,7 @@
 
 (defun update-mood-jungle ((arg0 mood-context) (arg1 float) (arg2 int))
   (update-mood-fog arg0 arg1)
+  (rainy-universal-fog-reduce arg0)
   (update-mood-sky-texture arg0 arg1)
   (clear-mood-times arg0)
   (update-mood-palette arg0 arg1 arg2)
@@ -1637,6 +1662,7 @@
 
 (defun update-mood-firecanyon ((arg0 mood-context) (arg1 float) (arg2 int))
   (update-mood-fog arg0 arg1)
+  (rainy-universal-fog-reduce arg0)
   (update-mood-sky-texture arg0 arg1)
   (clear-mood-times arg0)
   (update-mood-palette arg0 arg1 arg2)
@@ -1652,6 +1678,7 @@
 
 (defun update-mood-training ((arg0 mood-context) (arg1 float) (arg2 int))
   (update-mood-fog arg0 arg1)
+  (rainy-universal-fog-reduce arg0)
   (update-mood-sky-texture arg0 arg1)
   (clear-mood-times arg0)
   (update-mood-palette arg0 arg1 arg2)

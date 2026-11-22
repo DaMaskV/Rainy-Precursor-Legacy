@@ -15,18 +15,18 @@ Choose a mode under **Game Options > Rainy Weather**:
 
 **Clear Skies Length** offers 30–60 seconds, 2–5 minutes, or 5–10 minutes before cloud buildup. Dynamic Weather uses a 70% rain probability and a 50% conditional storm probability. Cloud buildup: 30–90 seconds; rain: 60–180 seconds; storm: 60–120 seconds; clearing: 30–60 seconds. Transitions add time.
 
-## Sentinel Beach fog
+## Fog
 
-The **Beach Fog** option provides:
+Under **Game Options > Rainy Weather**, choose **Fog: On / Off**.
 
-- **Permanent** (default) — retains the existing persistent, heavier fog presentation.
-- **Dynamic** — adjusts fog density to changing weather conditions while preserving the beach's color palette.
+- **On (default)** keeps the familiar rainy atmosphere, including Sentinel Beach.
+- **Off** reduces distance fog in supported outdoor areas while keeping the natural horizon haze.
 
-This setting is independent of the selected weather mode and persists between sessions. Existing v1.2.0 weather preferences remain supported.
+The choice is saved between sessions. Existing weather preferences remain supported.
 
 ## Regions and compatibility
 
-Geyser Rock, Sandover Village, Sentinel Beach, Forbidden Jungle, Misty Island, and Rock Village share the weather timeline. Rock Village retains its original lightning/thunder behavior and weather-aware fog. Boggy Swamp retains its native weather; Lost Precursor City remains excluded. Geyser Rock has limited storm effects, and Forbidden Jungle's temple retains time without outdoor rain. Some indoor rain particles may still appear at particular spots or camera angles.
+Geyser Rock, Sandover Village, Sentinel Beach, Forbidden Jungle, Misty Island, Fire Canyon, and Rock Village share the weather timeline. Rock Village retains its original lightning/thunder behavior and weather-aware fog. Boggy Swamp retains its native weather; Lost Precursor City remains excluded. Geyser Rock has limited storm effects, and Forbidden Jungle's temple retains time without outdoor rain. Some indoor rain particles may still appear at particular spots or camera angles.
 
 Rainy Weather menu strings are supplied for the game's **23 configured language slots**, including 21 additional non-English locales. Not every translation has undergone native-speaker review or full in-game glyph/layout verification; corrections are welcome.
 

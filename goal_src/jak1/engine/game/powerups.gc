@@ -444,14 +444,30 @@
   0
   (none))
 
+;; PRIVATE Rainy mode-aware precipitation test. Native part-table counts are
+;; restored before native rain; storm counts apply only to Rainy's weather path.
+;; Dynamic mode follows the existing smooth cloud/fog transitions, not a new timer.
+(defun rainy-density-storm-weight ()
+  (cond
+    ((= *rainy-preset* 4) 1.0)
+    ((and (> *rainy-preset* 0) (< *rainy-preset* 4))
+     (fmax 0.0 (fmin 1.0 (* 4.0 (- (fmin *rainy-cloud* *rainy-fog*) 0.75)))))
+    (else 0.0)))
+
+(defun rainy-set-rain-particle-density ((weight float))
+  (set! (-> *part-id-table* 37 init-specs 1 initial-valuef) (+ 1.5 (* 0.4 weight)))
+  (set! (-> *part-id-table* 38 init-specs 1 initial-valuef) (+ 4.5 (* 1.2 weight)))
+  (none))
+
 (defbehavior target-powerup-process target ()
   (water-control-method-10 (-> self water))
   (when (not *weather-off*)
     (case (-> self current-level name)
-      (('swamp 'village1 'village2 'beach 'misty 'jungle 'training)
+      (('swamp 'village1 'village2 'firecanyon 'beach 'misty 'jungle 'training)
        (if (and (= *rainy-mode* 'dynamic)
                 (or (= (-> self current-level name) 'village1)
                     (= (-> self current-level name) 'village2)
+                     (= (-> self current-level name) 'firecanyon)
                     (= (-> self current-level name) 'beach)
                     (= (-> self current-level name) 'jungle)
                     (= (-> self current-level name) 'training)
@@ -460,8 +476,20 @@
              (begin
                (set! *rainy-exposure* 0.0)
                (rainy-release-drips))
-             (rainy-update-rain self))
-           (begin (update-rain self) (rainy-note-native-drips))))
+                           (begin
+                ;; Rainy-only modest +33% particle count; native rain untouched.
+                (set! (-> *part-id-table* 37 init-specs 1 initial-valuef) 2.0)
+                (set! (-> *part-id-table* 38 init-specs 1 initial-valuef) 6.0)
+                (begin
+               (rainy-set-rain-particle-density (rainy-density-storm-weight))
+               (rainy-update-rain self))))
+                       (begin
+              ;; Restore original particle counts before native weather,
+              ;; including Boggy Swamp and legacy weather mode.
+              (set! (-> *part-id-table* 37 init-specs 1 initial-valuef) 1.5)
+              (set! (-> *part-id-table* 38 init-specs 1 initial-valuef) 4.5)
+              (begin (rainy-set-rain-particle-density 0.0) (update-rain self))
+              (rainy-note-native-drips))))
       (('snow) (update-snow self))))
   (cond
     ((and (= (-> self control ground-pat material) (pat-material ice))
